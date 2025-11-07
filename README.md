@@ -1,6 +1,5 @@
 # 🎓 ProjectSphere
 
-# 🎓 ProjectSphere  
 🔗 **Live Demo:** [https://projectsphere.vercel.app](https://projectsphere.vercel.app)
 
 
