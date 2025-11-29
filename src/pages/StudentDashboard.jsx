@@ -1,89 +1,186 @@
+import React, { useState } from "react";
+import { useProjectContext } from "../context/ProjectContext";
 import {
-  Container, Typography, Grid, Card, CardContent, LinearProgress, Button, Box
+  Box,
+  Button,
+  Typography,
+  Paper,
+  Chip,
+  Snackbar,
+  Grid,
 } from "@mui/material";
 import { motion } from "framer-motion";
-import { useRef } from "react";
-import { useProjectContext } from "../context/ProjectContext";
-import TeamSelector from "../components/TeamSelector";
+
+const MotionBox = motion(Box);
+const MotionPaper = motion(Paper);
 
 export default function StudentDashboard() {
-  const { user, tasks, markSubmitted } = useProjectContext();
-  const inputs = useRef({}); // per-task file inputs
+  const { user, tasks, setTasks } = useProjectContext();
+  const [snack, setSnack] = useState(false);
 
-  const handleChooseFile = (taskId) => {
-    if (inputs.current[taskId]) inputs.current[taskId].click();
-  };
+  const handleSnackClose = () => setSnack(false);
 
-  const handleUpload = (taskId, e) => {
-    const file = e.target.files?.[0];
+  const handleFileUpload = (taskId, event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
-    const fakeUrl = URL.createObjectURL(file); // simulate uploaded URL
-    markSubmitted(taskId, fakeUrl); // sets progress to 100 + status Submitted
+
+    const updated = tasks.map((t) =>
+      t.id === taskId
+        ? {
+            ...t,
+            submitted: true,
+            fileName: file.name,
+          }
+        : t
+    );
+
+    setTasks(updated);
+    setSnack(true);
+    event.target.value = "";
   };
 
-  const myTasks = tasks.filter((t) => !user?.team || t.team === user.team);
+  const openFileDialog = (taskId) => {
+    const input = document.getElementById(`file-input-${taskId}`);
+    if (input) input.click();
+  };
+
+  // 🧠 Team-based filtering: show only tasks for this student's team
+  const teamName = user?.team || "";
+  const filteredTasks =
+    teamName && teamName !== "All Teams"
+      ? tasks.filter((t) => t.team === teamName)
+      : tasks;
 
   return (
-    <Container sx={{ mt: 4 }}>
-      <Typography variant="h5" fontWeight="bold" gutterBottom>
-        Student Dashboard — Hi {user?.name}
+    <MotionBox
+      sx={{ p: 3 }}
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+    >
+      <Typography variant="h3" sx={{ mb: 2, fontWeight: "700" }}>
+        Student Dashboard
       </Typography>
 
-      <TeamSelector />
+      {/* Hero section */}
+      <Paper
+        sx={{
+          mb: 3,
+          p: 3,
+          borderRadius: 4,
+          display: "flex",
+          alignItems: "center",
+          gap: 3,
+          background:
+            "linear-gradient(135deg, rgba(59,130,246,0.2), rgba(45,212,191,0.08))",
+        }}
+        elevation={8}
+      >
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
+            Hi {user?.name || "Student"} 👋
+          </Typography>
+          {teamName && teamName !== "All Teams" && (
+            <Typography sx={{ fontWeight: 500, mb: 1 }}>
+              You are in <strong>{teamName}</strong>. Tasks below are assigned
+              to your team.
+            </Typography>
+          )}
+          <Typography variant="body1" sx={{ opacity: 0.85 }}>
+            Upload your work files for each assigned task. Once submitted, your
+            teacher will be able to review them and update your progress.
+          </Typography>
+        </Box>
 
-      <Box sx={{ mt: 2, mb: 1 }}>
-        <Typography variant="h6">Your Team Tasks</Typography>
-      </Box>
+        <Box
+          component="img"
+          src="https://source.unsplash.com/featured/?students,project"
+          alt="Students working"
+          sx={{
+            width: 220,
+            height: 140,
+            borderRadius: 3,
+            objectFit: "cover",
+            display: { xs: "none", md: "block" },
+          }}
+        />
+      </Paper>
+
+      {/* Tasks section */}
+      <Typography variant="h5" sx={{ mb: 1 }}>
+        Your Team Tasks
+      </Typography>
+
+      {filteredTasks.length === 0 && (
+        <Typography sx={{ opacity: 0.7, mb: 2 }}>
+          No tasks assigned to <strong>{teamName}</strong> yet.
+        </Typography>
+      )}
 
       <Grid container spacing={2}>
-        {myTasks.length === 0 && (
-          <Typography sx={{ ml: 2 }}>No tasks yet for your team.</Typography>
-        )}
+        {filteredTasks.map((task) => (
+          <Grid item xs={12} md={8} key={task.id}>
+            <input
+              id={`file-input-${task.id}`}
+              type="file"
+              style={{ display: "none" }}
+              onChange={(e) => handleFileUpload(task.id, e)}
+            />
 
-        {myTasks.map((t) => (
-          <Grid item xs={12} sm={6} md={4} key={t.id}>
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              <Card sx={{ borderRadius: 3, boxShadow: 4 }}>
-                <CardContent>
-                  <Typography variant="h6">{t.title}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {t.description || "No description provided."}
+            <MotionPaper
+              whileHover={{ scale: 1.02, translateY: -3 }}
+              transition={{ type: "spring", stiffness: 260, damping: 18 }}
+              sx={{
+                p: 2,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                bgcolor: task.submitted ? "#10b981" : "#1e293b",
+                color: "white",
+                boxShadow: "0 10px 30px rgba(0,0,0,0.45)",
+                borderRadius: "16px",
+              }}
+              elevation={5}
+            >
+              <Box>
+                <Typography sx={{ fontWeight: 600 }}>{task.title}</Typography>
+                <Typography sx={{ fontSize: 13, opacity: 0.85 }}>
+                  Team: {task.team || "Not set"} • Due:{" "}
+                  {task.dueDate || "Not set"}
+                </Typography>
+                {task.fileName && (
+                  <Typography sx={{ fontSize: 12, opacity: 0.9, mt: 0.5 }}>
+                    Uploaded file: <strong>{task.fileName}</strong>
                   </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>Team: {t.team}</Typography>
-                  <Typography variant="body2">Due: {t.dueDate || "—"}</Typography>
+                )}
+              </Box>
 
-                  <Box sx={{ mt: 1 }}>
-                    <LinearProgress
-                      variant="determinate"
-                      value={t.progress}
-                      color={t.progress === 100 ? "success" : "primary"}
-                    />
-                    <Typography variant="caption">Status: {t.status}</Typography>
-                  </Box>
-
-                  {t.progress < 100 ? (
-                    <>
-                      <input
-                        type="file"
-                        ref={(el) => (inputs.current[t.id] = el)}
-                        style={{ display: "none" }}
-                        onChange={(e) => handleUpload(t.id, e)}
-                      />
-                      <Button sx={{ mt: 2 }} variant="outlined" size="small" onClick={() => handleChooseFile(t.id)}>
-                        Upload Work
-                      </Button>
-                    </>
-                  ) : (
-                    <Typography variant="body2" color="secondary" sx={{ mt: 1 }}>
-                      File uploaded ✔ (Ready for grading)
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
+              {task.submitted ? (
+                <Chip
+                  label="Submitted ✔"
+                  color="success"
+                  sx={{ bgcolor: "rgba(22,163,74,0.9)", color: "white" }}
+                />
+              ) : (
+                <Button
+                  variant="contained"
+                  onClick={() => openFileDialog(task.id)}
+                  sx={{ borderRadius: 999 }}
+                >
+                  Upload & Submit
+                </Button>
+              )}
+            </MotionPaper>
           </Grid>
         ))}
       </Grid>
-    </Container>
+
+      <Snackbar
+        open={snack}
+        autoHideDuration={2300}
+        onClose={handleSnackClose}
+        message="Work submitted!"
+      />
+    </MotionBox>
   );
 }

@@ -1,47 +1,51 @@
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import Navbar from "./components/Navbar";
 import LoginPage from "./pages/LoginPage";
-import { useProjectContext } from "./context/ProjectContext";
-import { Navigate } from "react-router-dom";
-import AdminDashboard from "./pages/AdminDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
-import ProjectDetails from "./pages/ProjectDetails";
+import AdminDashboard from "./pages/AdminDashboard"; // or TeacherDashboard if that's your filename
+import ProtectedRoute from "./components/ProtectedRoute";
 
-const pageVariants = {
-  initial: { opacity: 0, y: 24, filter: "blur(2px)" },
-  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-  exit: { opacity: 0, y: -16, filter: "blur(2px)" },
-};
-
-function AnimatedRoutes() {
-  const location = useLocation();
-  return (
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={location.pathname}
-        variants={pageVariants}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        transition={{ duration: 0.35 }}
-      >
-        <Routes location={location}>
-          <Route path="/" element={<LoginPage />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/student" element={<StudentDashboard />} />
-          <Route path="/project/:id" element={<ProjectDetails />} />
-        </Routes>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-export default function App({ toggleMode, mode }) {
+/**
+ * App:
+ * - Wraps everything in BrowserRouter
+ * - Shows Navbar on all pages
+ * - Defines routes for login, student, and admin
+ * - Uses ProtectedRoute so dashboards require login
+ *
+ * Props:
+ *  - mode, toggleMode come from index.js (for dark/light mode in Navbar)
+ */
+export default function App({ mode, toggleMode }) {
   return (
     <Router>
-      <Navbar toggleMode={toggleMode} mode={mode} />
-      <AnimatedRoutes />
+      <Navbar mode={mode} toggleMode={toggleMode} />
+
+      <Routes>
+        {/* Public route */}
+        <Route path="/" element={<LoginPage />} />
+
+        {/* Student dashboard (only for logged-in students) */}
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin/Teacher dashboard (only for logged-in teacher/admin) */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
     </Router>
   );
 }
