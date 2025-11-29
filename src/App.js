@@ -1,3 +1,4 @@
+import RegisterPage from "./pages/RegisterPage";
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
@@ -23,10 +24,13 @@ export default function App({ mode, toggleMode }) {
       <Navbar mode={mode} toggleMode={toggleMode} />
 
       <Routes>
-        {/* Public route */}
+        {/* Login page */}
         <Route path="/" element={<LoginPage />} />
 
-        {/* Student dashboard (only for logged-in students) */}
+        {/* Registration page */}
+        <Route path="/register" element={<RegisterPage />} />
+
+        {/* Student dashboard */}
         <Route
           path="/student"
           element={
@@ -36,7 +40,7 @@ export default function App({ mode, toggleMode }) {
           }
         />
 
-        {/* Admin/Teacher dashboard (only for logged-in teacher/admin) */}
+        {/* Teacher/Admin dashboard */}
         <Route
           path="/admin"
           element={

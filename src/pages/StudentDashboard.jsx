@@ -8,11 +8,26 @@ import {
   Chip,
   Snackbar,
   Grid,
+  LinearProgress,
 } from "@mui/material";
 import { motion } from "framer-motion";
 
 const MotionBox = motion(Box);
 const MotionPaper = motion(Paper);
+
+// Sample team data – you can edit names/roles later
+const TEAM_MEMBERS = {
+  "Team Alpha": [
+    { id: 1, name: "Zuveriya", role: "Team Lead", progress: 80 },
+    { id: 2, name: "Member 2", role: "Frontend", progress: 60 },
+    { id: 3, name: "Member 3", role: "Documentation", progress: 50 },
+  ],
+  "Team Beta": [
+    { id: 1, name: "Student A", role: "Team Lead", progress: 70 },
+    { id: 2, name: "Student B", role: "Backend", progress: 55 },
+    { id: 3, name: "Student C", role: "UI/UX", progress: 40 },
+  ],
+};
 
 export default function StudentDashboard() {
   const { user, tasks, setTasks } = useProjectContext();
@@ -44,12 +59,14 @@ export default function StudentDashboard() {
     if (input) input.click();
   };
 
-  // 🧠 Team-based filtering: show only tasks for this student's team
   const teamName = user?.team || "";
   const filteredTasks =
     teamName && teamName !== "All Teams"
       ? tasks.filter((t) => t.team === teamName)
       : tasks;
+
+  const memberList =
+    teamName && TEAM_MEMBERS[teamName] ? TEAM_MEMBERS[teamName] : [];
 
   return (
     <MotionBox
@@ -72,9 +89,10 @@ export default function StudentDashboard() {
           alignItems: "center",
           gap: 3,
           background:
-            "linear-gradient(135deg, rgba(59,130,246,0.2), rgba(45,212,191,0.08))",
+            "linear-gradient(135deg, rgba(59,130,246,0.25), rgba(45,212,191,0.15))",
+          boxShadow: "0 20px 40px rgba(15,23,42,0.9)",
         }}
-        elevation={8}
+        elevation={10}
       >
         <Box sx={{ flex: 1 }}>
           <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
@@ -117,7 +135,7 @@ export default function StudentDashboard() {
         </Typography>
       )}
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} sx={{ mb: 4 }}>
         {filteredTasks.map((task) => (
           <Grid item xs={12} md={8} key={task.id}>
             <input
@@ -174,6 +192,74 @@ export default function StudentDashboard() {
           </Grid>
         ))}
       </Grid>
+
+      {/* 🧑‍🤝‍🧑 Your Team section */}
+      {teamName && memberList.length > 0 && (
+        <Paper
+          sx={{
+            p: 3,
+            borderRadius: 4,
+            maxWidth: 600,
+            background:
+              "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,118,110,0.7))",
+            boxShadow: "0 20px 45px rgba(0,0,0,0.8)",
+          }}
+        >
+          <Typography
+            variant="h6"
+            sx={{ mb: 2, fontWeight: 600, color: "white" }}
+          >
+            Your Team: {teamName}
+          </Typography>
+
+          {memberList.map((m) => (
+            <Box
+              key={m.id}
+              sx={{
+                mb: 2,
+                p: 1.5,
+                borderRadius: 3,
+                bgcolor: "rgba(15,23,42,0.8)",
+              }}
+            >
+              <Typography
+                sx={{ fontWeight: 600, color: "white", fontSize: 15 }}
+              >
+                {m.name}{" "}
+                <Typography
+                  component="span"
+                  sx={{ opacity: 0.8, fontSize: 13 }}
+                >
+                  • {m.role}
+                </Typography>
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={m.progress}
+                sx={{
+                  mt: 1,
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: "rgba(148,163,184,0.5)",
+                  "& .MuiLinearProgress-bar": {
+                    borderRadius: 999,
+                    backgroundColor: "#38bdf8",
+                  },
+                }}
+              />
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  fontSize: 12,
+                  color: "rgba(226,232,240,0.9)",
+                }}
+              >
+                Contribution: {m.progress}%
+              </Typography>
+            </Box>
+          ))}
+        </Paper>
+      )}
 
       <Snackbar
         open={snack}

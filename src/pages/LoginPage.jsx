@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -16,56 +16,61 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const [credentials, setCredentials] = useState({
-    name: "",
+    email: "",
     role: "student",
-    team: "",
     password: "",
   });
 
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Show success after registration
+  useEffect(() => {
+    const msg = localStorage.getItem("authMessage");
+    if (msg) {
+      setSuccess(msg);
+      localStorage.removeItem("authMessage");
+    }
+  }, []);
 
   const handleChange = (field) => (e) => {
     setCredentials((prev) => ({ ...prev, [field]: e.target.value }));
     setError("");
+    setSuccess("");
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const { email, role, password } = credentials;
 
-    const { name, role, team, password } = credentials;
-
-    if (!name || !password || (role === "student" && !team)) {
-      setError("All required fields must be filled.");
+    if (!email || !password) {
+      setError("Please enter email and password.");
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    const users = JSON.parse(localStorage.getItem("users") || "[]");
+
+    const found = users.find((u) => u.email === email && u.role === role);
+
+    if (!found) {
+      setError("User not found. Please register first.");
       return;
     }
 
-    const validPasswords = {
-      admin: "teacher123",
-      student: "student123",
+    if (found.password !== password) {
+      setError("Incorrect password.");
+      return;
+    }
+
+    const userObj = {
+      name: found.name,
+      email: found.email,
+      role: found.role,
+      team: found.team,
     };
 
-    if (password !== validPasswords[role]) {
-      setError(
-        role === "admin"
-          ? "Invalid password for Teacher. Try: teacher123"
-          : "Invalid password for Student. Try: student123"
-      );
-      return;
-    }
-
-    // 🧠 user object now includes team for students
-    const userObject =
-      role === "student"
-        ? { name, role, team }
-        : { name, role, team: "All Teams" };
-
-    setUser(userObject);
-    localStorage.setItem("user", JSON.stringify(userObject));
+    setUser(userObj);
+    localStorage.setItem("user", JSON.stringify(userObj));
 
     navigate(role === "admin" ? "/admin" : "/student");
   };
@@ -115,6 +120,11 @@ export default function LoginPage() {
             {error}
           </Alert>
         )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
 
         <Box
           component="form"
@@ -122,9 +132,9 @@ export default function LoginPage() {
           sx={{ display: "flex", flexDirection: "column", gap: 2 }}
         >
           <TextField
-            label="Your Name"
-            value={credentials.name}
-            onChange={handleChange("name")}
+            label="Email"
+            value={credentials.email}
+            onChange={handleChange("email")}
             fullWidth
             required
           />
@@ -140,18 +150,6 @@ export default function LoginPage() {
             <MenuItem value="admin">Teacher</MenuItem>
           </TextField>
 
-          {/* Team only required for students */}
-          {credentials.role === "student" && (
-            <TextField
-              label="Team Name *"
-              placeholder="e.g. Team Alpha"
-              value={credentials.team}
-              onChange={handleChange("team")}
-              fullWidth
-              required
-            />
-          )}
-
           <TextField
             label="Password"
             type="password"
@@ -159,11 +157,6 @@ export default function LoginPage() {
             onChange={handleChange("password")}
             fullWidth
             required
-            helperText={
-              credentials.role === "admin"
-                ? 'Demo Teacher password: "teacher123"'
-                : 'Demo Student password: "student123"'
-            }
           />
 
           <Button
@@ -174,6 +167,15 @@ export default function LoginPage() {
             fullWidth
           >
             Login
+          </Button>
+
+          <Button
+            variant="text"
+            onClick={() => navigate("/register")}
+            sx={{ mt: 1 }}
+            fullWidth
+          >
+            New user? Create an account
           </Button>
         </Box>
       </Paper>

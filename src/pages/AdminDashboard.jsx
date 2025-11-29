@@ -10,6 +10,7 @@ import {
   IconButton,
   Grid,
   Chip,
+  LinearProgress,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -18,6 +19,9 @@ import { motion } from "framer-motion";
 
 const MotionBox = motion(Box);
 const MotionPaper = motion(Paper);
+
+// same team names as in StudentDashboard
+const TEAMS = ["Team Alpha", "Team Beta"];
 
 export default function AdminDashboard() {
   const { tasks, setTasks } = useProjectContext();
@@ -67,6 +71,15 @@ export default function AdminDashboard() {
     setEditId(null);
   };
 
+  // 🧠 compute team-wise completion based on tasks
+  const teamSummary = TEAMS.map((teamName) => {
+    const teamTasks = tasks.filter((t) => t.team === teamName);
+    const total = teamTasks.length;
+    const submitted = teamTasks.filter((t) => t.submitted).length;
+    const completion = total === 0 ? 0 : Math.round((submitted / total) * 100);
+    return { teamName, total, submitted, completion };
+  });
+
   return (
     <MotionBox
       sx={{ p: 3 }}
@@ -78,7 +91,7 @@ export default function AdminDashboard() {
         Teacher Dashboard — Assign & Review
       </Typography>
 
-      {/* Hero / form card */}
+      {/* Assign form */}
       <Paper
         sx={{
           mb: 4,
@@ -116,7 +129,7 @@ export default function AdminDashboard() {
           <Grid item xs={12} md={6}>
             <TextField
               label="Team *"
-              placeholder="Team Alpha / Beta"
+              placeholder="Team Alpha / Team Beta"
               fullWidth
               value={form.team}
               onChange={handleChange("team")}
@@ -146,7 +159,54 @@ export default function AdminDashboard() {
         </Grid>
       </Paper>
 
-      {/* Tasks list with progress */}
+      {/* Team overview dashboard */}
+      <Typography variant="h5" sx={{ mb: 2 }}>
+        Team Overview
+      </Typography>
+
+      <Grid container spacing={2} sx={{ mb: 4 }}>
+        {teamSummary.map((team) => (
+          <Grid item xs={12} md={4} key={team.teamName}>
+            <Paper
+              sx={{
+                p: 2.5,
+                borderRadius: 4,
+                bgcolor: "#020617",
+                color: "white",
+                boxShadow: "0 18px 40px rgba(15,23,42,0.9)",
+              }}
+            >
+              <Typography
+                variant="h6"
+                sx={{ fontWeight: 600, mb: 1 }}
+              >
+                {team.teamName}
+              </Typography>
+              <Typography sx={{ fontSize: 13, mb: 1.5, opacity: 0.85 }}>
+                Tasks: {team.submitted}/{team.total} submitted
+              </Typography>
+              <LinearProgress
+                variant="determinate"
+                value={team.completion}
+                sx={{
+                  height: 8,
+                  borderRadius: 999,
+                  backgroundColor: "rgba(148,163,184,0.5)",
+                  "& .MuiLinearProgress-bar": {
+                    borderRadius: 999,
+                    backgroundColor: "#22c55e",
+                  },
+                }}
+              />
+              <Typography sx={{ mt: 0.5, fontSize: 12, opacity: 0.9 }}>
+                Overall completion: {team.completion}%
+              </Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Task list */}
       <Typography variant="h5" sx={{ mb: 2 }}>
         All Tasks & Activity
       </Typography>
@@ -165,7 +225,6 @@ export default function AdminDashboard() {
                 boxShadow: "0 20px 45px rgba(15,23,42,0.95)",
               }}
             >
-              {/* Title row */}
               <Box
                 sx={{
                   display: "flex",
@@ -210,14 +269,11 @@ export default function AdminDashboard() {
               </Typography>
 
               {task.description && (
-                <Typography
-                  sx={{ fontSize: 14, opacity: 0.8, mb: 1.5 }}
-                >
+                <Typography sx={{ fontSize: 14, opacity: 0.8, mb: 1.5 }}>
                   {task.description}
                 </Typography>
               )}
 
-              {/* Status chips */}
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Chip
                   label={task.submitted ? "Submitted" : "Pending"}
