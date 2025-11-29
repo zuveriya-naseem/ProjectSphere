@@ -24,7 +24,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Show success after registration
+  // Show success message after registration
   useEffect(() => {
     const msg = localStorage.getItem("authMessage");
     if (msg) {

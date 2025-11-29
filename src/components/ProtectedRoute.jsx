@@ -2,24 +2,19 @@ import React from "react";
 import { Navigate } from "react-router-dom";
 import { useProjectContext } from "../context/ProjectContext";
 
-/**
- * ProtectedRoute:
- * - Redirects to "/" (LoginPage) if no user is logged in
- * - If allowedRole is given, only that role can access the route
- */
-export default function ProtectedRoute({ children, allowedRole }) {
+export default function ProtectedRoute({ allowedRole, children }) {
   const { user } = useProjectContext();
 
-  // Not logged in at all → go to login
+  // not logged in → go to login
   if (!user) {
     return <Navigate to="/" replace />;
   }
 
-  // Logged in but wrong role → also send to login
+  // logged in but wrong role → also back to login/home
   if (allowedRole && user.role !== allowedRole) {
     return <Navigate to="/" replace />;
   }
 
-  // All good → show the page
+  // allowed → render actual page
   return children;
 }
