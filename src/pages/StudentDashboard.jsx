@@ -15,20 +15,6 @@ import { motion } from "framer-motion";
 const MotionBox = motion(Box);
 const MotionPaper = motion(Paper);
 
-// Sample team data – you can edit names/roles later
-const TEAM_MEMBERS = {
-  "Team Alpha": [
-    { id: 1, name: "Zuveriya", role: "Team Lead", progress: 80 },
-    { id: 2, name: "Member 2", role: "Frontend", progress: 60 },
-    { id: 3, name: "Member 3", role: "Documentation", progress: 50 },
-  ],
-  "Team Beta": [
-    { id: 1, name: "Student A", role: "Team Lead", progress: 70 },
-    { id: 2, name: "Student B", role: "Backend", progress: 55 },
-    { id: 3, name: "Student C", role: "UI/UX", progress: 40 },
-  ],
-};
-
 export default function StudentDashboard() {
   const { user, tasks, setTasks } = useProjectContext();
   const [snack, setSnack] = useState(false);
@@ -39,15 +25,38 @@ export default function StudentDashboard() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const updated = tasks.map((t) =>
-      t.id === taskId
-        ? {
-            ...t,
-            submitted: true,
-            fileName: file.name,
-          }
-        : t
-    );
+    const updated = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const prevSubmissions = t.submissions || [];
+      // tag submission with current user's email
+      const existingIndex = prevSubmissions.findIndex(
+        (s) => s.email === user?.email
+      );
+
+      let newSubmissions;
+      const newSubmission = {
+        email: user?.email,
+        name: user?.name,
+        fileName: file.name,
+        submittedAt: new Date().toISOString(),
+      };
+
+      if (existingIndex >= 0) {
+        // update existing submission by same user
+        newSubmissions = [...prevSubmissions];
+        newSubmissions[existingIndex] = newSubmission;
+      } else {
+        newSubmissions = [...prevSubmissions, newSubmission];
+      }
+
+      return {
+        ...t,
+        submitted: true,
+        fileName: file.name,
+        submissions: newSubmissions,
+      };
+    });
 
     setTasks(updated);
     setSnack(true);
@@ -60,13 +69,38 @@ export default function StudentDashboard() {
   };
 
   const teamName = user?.team || "";
-  const filteredTasks =
+  const teamTasks =
     teamName && teamName !== "All Teams"
       ? tasks.filter((t) => t.team === teamName)
       : tasks;
 
-  const memberList =
-    teamName && TEAM_MEMBERS[teamName] ? TEAM_MEMBERS[teamName] : [];
+  // 🔹 Dynamic team members from registered users
+  const allUsers = JSON.parse(localStorage.getItem("users") || "[]");
+  const teamMembers = allUsers.filter(
+    (u) => u.role === "student" && u.team === teamName
+  );
+
+  const totalTeamTasks = teamTasks.length || 0;
+
+  // compute contribution per member based on how many tasks they submitted
+  const memberStats = teamMembers.map((m) => {
+    const submittedCount = teamTasks.reduce((count, task) => {
+      const subs = task.submissions || [];
+      const didSubmit = subs.some((s) => s.email === m.email);
+      return count + (didSubmit ? 1 : 0);
+    }, 0);
+
+    const percentage =
+      totalTeamTasks === 0
+        ? 0
+        : Math.round((submittedCount / totalTeamTasks) * 100);
+
+    return {
+      ...m,
+      submittedCount,
+      percentage,
+    };
+  });
 
   return (
     <MotionBox
@@ -105,8 +139,9 @@ export default function StudentDashboard() {
             </Typography>
           )}
           <Typography variant="body1" sx={{ opacity: 0.85 }}>
-            Upload your work files for each assigned task. Once submitted, your
-            teacher will be able to review them and update your progress.
+            Upload your work files for each assigned task. Your submissions are
+            tracked per member so your teacher can see individual
+            contributions.
           </Typography>
         </Box>
 
@@ -129,14 +164,14 @@ export default function StudentDashboard() {
         Your Team Tasks
       </Typography>
 
-      {filteredTasks.length === 0 && (
+      {teamTasks.length === 0 && (
         <Typography sx={{ opacity: 0.7, mb: 2 }}>
           No tasks assigned to <strong>{teamName}</strong> yet.
         </Typography>
       )}
 
       <Grid container spacing={2} sx={{ mb: 4 }}>
-        {filteredTasks.map((task) => (
+        {teamTasks.map((task) => (
           <Grid item xs={12} md={8} key={task.id}>
             <input
               id={`file-input-${task.id}`}
@@ -168,7 +203,7 @@ export default function StudentDashboard() {
                 </Typography>
                 {task.fileName && (
                   <Typography sx={{ fontSize: 12, opacity: 0.9, mt: 0.5 }}>
-                    Uploaded file: <strong>{task.fileName}</strong>
+                    Last uploaded file: <strong>{task.fileName}</strong>
                   </Typography>
                 )}
               </Box>
@@ -193,13 +228,13 @@ export default function StudentDashboard() {
         ))}
       </Grid>
 
-      {/* 🧑‍🤝‍🧑 Your Team section */}
-      {teamName && memberList.length > 0 && (
+      {/* 🧑‍🤝‍🧑 Team panel with contributions */}
+      {teamName && memberStats.length > 0 && (
         <Paper
           sx={{
             p: 3,
             borderRadius: 4,
-            maxWidth: 600,
+            maxWidth: 700,
             background:
               "linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,118,110,0.7))",
             boxShadow: "0 20px 45px rgba(0,0,0,0.8)",
@@ -209,35 +244,51 @@ export default function StudentDashboard() {
             variant="h6"
             sx={{ mb: 2, fontWeight: 600, color: "white" }}
           >
-            Your Team: {teamName}
+            Your Team: {teamName} — Member Contributions
           </Typography>
 
-          {memberList.map((m) => (
+          {memberStats.map((m) => (
             <Box
-              key={m.id}
+              key={m.email}
               sx={{
                 mb: 2,
                 p: 1.5,
                 borderRadius: 3,
-                bgcolor: "rgba(15,23,42,0.8)",
+                bgcolor:
+                  m.email === user?.email
+                    ? "rgba(15,23,42,0.95)"
+                    : "rgba(15,23,42,0.8)",
+                border:
+                  m.email === user?.email
+                    ? "1px solid rgba(56,189,248,0.9)"
+                    : "1px solid transparent",
               }}
             >
               <Typography
                 sx={{ fontWeight: 600, color: "white", fontSize: 15 }}
               >
                 {m.name}{" "}
-                <Typography
-                  component="span"
-                  sx={{ opacity: 0.8, fontSize: 13 }}
-                >
-                  • {m.role}
-                </Typography>
+                {m.email === user?.email && (
+                  <Typography
+                    component="span"
+                    sx={{ fontSize: 11, ml: 1, opacity: 0.8 }}
+                  >
+                    (You)
+                  </Typography>
+                )}
               </Typography>
+
+              <Typography
+                sx={{ fontSize: 12, opacity: 0.85, color: "white", mb: 0.5 }}
+              >
+                Tasks submitted: {m.submittedCount} / {totalTeamTasks}
+              </Typography>
+
               <LinearProgress
                 variant="determinate"
-                value={m.progress}
+                value={m.percentage}
                 sx={{
-                  mt: 1,
+                  mt: 0.5,
                   height: 8,
                   borderRadius: 999,
                   backgroundColor: "rgba(148,163,184,0.5)",
@@ -254,7 +305,7 @@ export default function StudentDashboard() {
                   color: "rgba(226,232,240,0.9)",
                 }}
               >
-                Contribution: {m.progress}%
+                Contribution: {m.percentage}%
               </Typography>
             </Box>
           ))}

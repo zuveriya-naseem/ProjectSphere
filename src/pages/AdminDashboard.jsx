@@ -20,9 +20,6 @@ import { motion } from "framer-motion";
 const MotionBox = motion(Box);
 const MotionPaper = motion(Paper);
 
-// same team names as in StudentDashboard
-const TEAMS = ["Team Alpha", "Team Beta"];
-
 export default function AdminDashboard() {
   const { tasks, setTasks } = useProjectContext();
 
@@ -35,6 +32,10 @@ export default function AdminDashboard() {
 
   const [editId, setEditId] = useState(null);
   const [editTitle, setEditTitle] = useState("");
+
+  // local edit state for grade & remark
+  const [editGrade, setEditGrade] = useState({});
+  const [editRemark, setEditRemark] = useState({});
 
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -50,6 +51,9 @@ export default function AdminDashboard() {
       team: form.team,
       dueDate: form.dueDate,
       submitted: false,
+      grade: null,
+      remark: "",
+      submissions: [],
     };
 
     setTasks([...tasks, newItem]);
@@ -58,12 +62,12 @@ export default function AdminDashboard() {
 
   const deleteTask = (id) => setTasks(tasks.filter((t) => t.id !== id));
 
-  const startEditing = (task) => {
+  const startEditingTitle = (task) => {
     setEditId(task.id);
     setEditTitle(task.title);
   };
 
-  const saveEdit = (id) => {
+  const saveTitle = (id) => {
     const updated = tasks.map((t) =>
       t.id === id ? { ...t, title: editTitle } : t
     );
@@ -71,8 +75,39 @@ export default function AdminDashboard() {
     setEditId(null);
   };
 
-  // 🧠 compute team-wise completion based on tasks
-  const teamSummary = TEAMS.map((teamName) => {
+  const handleGradeChange = (taskId, value) => {
+    setEditGrade((prev) => ({ ...prev, [taskId]: value }));
+  };
+
+  const handleRemarkChange = (taskId, value) => {
+    setEditRemark((prev) => ({ ...prev, [taskId]: value }));
+  };
+
+  const saveFeedback = (taskId) => {
+    const updated = tasks.map((t) =>
+      t.id === taskId
+        ? {
+            ...t,
+            grade:
+              editGrade[taskId] !== undefined && editGrade[taskId] !== null
+                ? editGrade[taskId]
+                : t.grade,
+            remark:
+              editRemark[taskId] !== undefined
+                ? editRemark[taskId]
+                : t.remark,
+          }
+        : t
+    );
+    setTasks(updated);
+  };
+
+  // dynamic team list based on tasks
+  const allTeams = Array.from(
+    new Set(tasks.map((t) => t.team).filter(Boolean))
+  );
+
+  const teamSummary = allTeams.map((teamName) => {
     const teamTasks = tasks.filter((t) => t.team === teamName);
     const total = teamTasks.length;
     const submitted = teamTasks.filter((t) => t.submitted).length;
@@ -176,10 +211,7 @@ export default function AdminDashboard() {
                 boxShadow: "0 18px 40px rgba(15,23,42,0.9)",
               }}
             >
-              <Typography
-                variant="h6"
-                sx={{ fontWeight: 600, mb: 1 }}
-              >
+              <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
                 {team.teamName}
               </Typography>
               <Typography sx={{ fontSize: 13, mb: 1.5, opacity: 0.85 }}>
@@ -208,7 +240,7 @@ export default function AdminDashboard() {
 
       {/* Task list */}
       <Typography variant="h5" sx={{ mb: 2 }}>
-        All Tasks & Activity
+        All Tasks & Feedback
       </Typography>
 
       <Grid container spacing={2}>
@@ -225,6 +257,7 @@ export default function AdminDashboard() {
                 boxShadow: "0 20px 45px rgba(15,23,42,0.95)",
               }}
             >
+              {/* Header row: title + actions */}
               <Box
                 sx={{
                   display: "flex",
@@ -249,11 +282,11 @@ export default function AdminDashboard() {
 
                 <Box>
                   {editId === task.id ? (
-                    <IconButton onClick={() => saveEdit(task.id)}>
+                    <IconButton onClick={() => saveTitle(task.id)}>
                       <SaveIcon sx={{ color: "#60a5fa" }} />
                     </IconButton>
                   ) : (
-                    <IconButton onClick={() => startEditing(task)}>
+                    <IconButton onClick={() => startEditingTitle(task)}>
                       <EditIcon sx={{ color: "#60a5fa" }} />
                     </IconButton>
                   )}
@@ -274,7 +307,7 @@ export default function AdminDashboard() {
                 </Typography>
               )}
 
-              <Box sx={{ display: "flex", gap: 1 }}>
+              <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
                 <Chip
                   label={task.submitted ? "Submitted" : "Pending"}
                   color={task.submitted ? "success" : "warning"}
@@ -283,6 +316,63 @@ export default function AdminDashboard() {
                     color: "white",
                   }}
                 />
+                {task.grade !== null && (
+                  <Chip
+                    label={`Grade: ${task.grade}`}
+                    sx={{ bgcolor: "#38bdf8", color: "black" }}
+                  />
+                )}
+              </Box>
+
+              {/* Feedback section */}
+              <Box sx={{ mt: 1 }}>
+                <Typography sx={{ fontWeight: 500, fontSize: 14, mb: 0.5 }}>
+                  Feedback
+                </Typography>
+
+                <Grid container spacing={1.5}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      label="Grade"
+                      type="number"
+                      fullWidth
+                      size="small"
+                      inputProps={{ min: 0, max: 10 }}
+                      value={
+                        editGrade[task.id] !== undefined
+                          ? editGrade[task.id]
+                          : task.grade ?? ""
+                      }
+                      onChange={(e) =>
+                        handleGradeChange(task.id, e.target.value)
+                      }
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={8}>
+                    <TextField
+                      label="Remark"
+                      fullWidth
+                      size="small"
+                      value={
+                        editRemark[task.id] !== undefined
+                          ? editRemark[task.id]
+                          : task.remark || ""
+                      }
+                      onChange={(e) =>
+                        handleRemarkChange(task.id, e.target.value)
+                      }
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => saveFeedback(task.id)}
+                    >
+                      Save Feedback
+                    </Button>
+                  </Grid>
+                </Grid>
               </Box>
             </MotionPaper>
           </Grid>
